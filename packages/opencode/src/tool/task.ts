@@ -6,8 +6,20 @@ import { MessageV2 } from "../session/message-v2"
 import { Agent } from "../agent/agent"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
+import { Permission } from "@/permission"
+import type { ModelID } from "../provider/schema"
+import type { ProviderID } from "../provider/schema"
 import { Effect, Exit, Schema } from "effect"
 import { EffectBridge } from "@/effect/bridge"
+
+export function parseModel(raw: string): { providerID: ProviderID; modelID: ModelID } {
+  const idx = raw.indexOf("/")
+  if (idx === -1) throw new Error(`Invalid model format "${raw}". Expected "provider/model-id"`)
+  return {
+    providerID: raw.slice(0, idx) as ProviderID,
+    modelID: raw.slice(idx + 1) as ModelID,
+  }
+}
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -108,18 +120,29 @@ export const TaskTool = Tool.define(
       const msg = yield* Effect.sync(() => MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }))
       if (msg.info.role !== "assistant") return yield* Effect.fail(new Error("Not an assistant message"))
 
-      // Determine model: params.model > agent default > parent message model
-      const model = params.model
-        ? (params.model.includes("/")
-          ? (() => {
-              const [providerID, modelID] = params.model.split("/")
-              return { modelID, providerID }
-            })()
-          : { modelID: params.model, providerID: msg.info.providerID })
-        : next.model ?? {
-            modelID: msg.info.modelID,
-            providerID: msg.info.providerID,
+      const info = msg.info
+
+      const model = (() => {
+        if (params.model) return parseModel(params.model)
+        return (
+          next.model ?? {
+            modelID: info.modelID,
+            providerID: info.providerID,
           }
+        )
+      })()
+
+      if (params.model) {
+        yield* ctx.ask({
+          permission: "model_override",
+          patterns: [params.model],
+          always: [params.model.slice(0, params.model.indexOf("/") + 1) + "*"],
+          metadata: {
+            model: params.model,
+            subagent_type: params.subagent_type,
+          },
+        })
+      }
 
       yield* ctx.metadata({
         title: params.description,
