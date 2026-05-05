@@ -390,11 +390,11 @@ describe("tool.task", () => {
       )
 
       expect(seen?.model).toEqual({
-        modelID: "gpt-4-vision-preview",
+        modelID: "gpt-4-vision-preview" as ModelID,
         providerID: ref.providerID,
       })
       expect(result.metadata.model).toEqual({
-        modelID: "gpt-4-vision-preview",
+        modelID: "gpt-4-vision-preview" as ModelID,
         providerID: ref.providerID,
       })
     }),
@@ -428,12 +428,12 @@ describe("tool.task", () => {
       )
 
       expect(seen?.model).toEqual({
-        modelID: "gpt-4-turbo",
-        providerID: "openai",
+        modelID: "gpt-4-turbo" as ModelID,
+        providerID: "openai" as ProviderID,
       })
       expect(result.metadata.model).toEqual({
-        modelID: "gpt-4-turbo",
-        providerID: "openai",
+        modelID: "gpt-4-turbo" as ModelID,
+        providerID: "openai" as ProviderID,
       })
     }),
   )
@@ -470,73 +470,5 @@ describe("tool.task", () => {
         providerID: ref.providerID,
       })
     }),
-  )
-    () =>
-      Effect.gen(function* () {
-        const sessions = yield* Session.Service
-        const { chat, assistant } = yield* seed()
-        const tool = yield* TaskTool
-        const def = yield* tool.init()
-        let seen: SessionPrompt.PromptInput | undefined
-        const promptOps = stubOps({ onPrompt: (input) => (seen = input) })
-
-        const result = yield* def.execute(
-          {
-            description: "inspect bug",
-            prompt: "look into the cache key path",
-            subagent_type: "reviewer",
-          },
-          {
-            sessionID: chat.id,
-            messageID: assistant.id,
-            agent: "build",
-            abort: new AbortController().signal,
-            extra: { promptOps },
-            messages: [],
-            metadata: () => Effect.void,
-            ask: () => Effect.void,
-          },
-        )
-
-        const child = yield* sessions.get(result.metadata.sessionId)
-        expect(child.parentID).toBe(chat.id)
-        expect(child.permission).toEqual([
-          {
-            permission: "todowrite",
-            pattern: "*",
-            action: "deny",
-          },
-          {
-            permission: "bash",
-            pattern: "*",
-            action: "allow",
-          },
-          {
-            permission: "read",
-            pattern: "*",
-            action: "allow",
-          },
-        ])
-        expect(seen?.tools).toEqual({
-          todowrite: false,
-          bash: false,
-          read: false,
-        })
-      }),
-    {
-      config: {
-        agent: {
-          reviewer: {
-            mode: "subagent",
-            permission: {
-              task: "allow",
-            },
-          },
-        },
-        experimental: {
-          primary_tools: ["bash", "read"],
-        },
-      },
-    },
   )
 })
