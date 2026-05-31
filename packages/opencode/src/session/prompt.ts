@@ -587,6 +587,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             description: task.description,
             subagent_type: task.agent,
             command: task.command,
+            model: task.model ? `${task.model.providerID}/${task.model.modelID}` : undefined,
           },
           time: { start: Date.now() },
         },
@@ -596,6 +597,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         description: task.description,
         subagent_type: task.agent,
         command: task.command,
+        model: task.model ? `${task.model.providerID}/${task.model.modelID}` : undefined,
       }
       yield* plugin.trigger(
         "tool.execute.before",

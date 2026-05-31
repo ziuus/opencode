@@ -11,10 +11,18 @@ import type { ModelID } from "../provider/schema"
 import type { ProviderID } from "../provider/schema"
 import { Effect, Exit, Schema } from "effect"
 import { EffectBridge } from "@/effect/bridge"
+import { Provider } from "../provider/provider"
+import * as EffectLogger from "@opencode-ai/core/effect/logger"
 
-export function parseModel(raw: string): { providerID: ProviderID; modelID: ModelID } {
+export function parseModel(raw: string, defaultProviderID?: ProviderID): { providerID: ProviderID; modelID: ModelID } {
   const idx = raw.indexOf("/")
-  if (idx === -1) throw new Error(`Invalid model format "${raw}". Expected "provider/model-id"`)
+  if (idx === -1) {
+    if (!defaultProviderID) throw new Error(`Invalid model format "${raw}". Expected "provider/model-id"`)
+    return {
+      providerID: defaultProviderID,
+      modelID: raw as ModelID,
+    }
+  }
   return {
     providerID: raw.slice(0, idx) as ProviderID,
     modelID: raw.slice(idx + 1) as ModelID,
@@ -44,12 +52,15 @@ export const Parameters = Schema.Struct({
   }),
 })
 
+const log = EffectLogger.create({ service: "tool.task" })
+
 export const TaskTool = Tool.define(
   id,
   Effect.gen(function* () {
     const agent = yield* Agent.Service
     const config = yield* Config.Service
     const sessions = yield* Session.Service
+    const provider = yield* Provider.Service
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -123,7 +134,7 @@ export const TaskTool = Tool.define(
       const info = msg.info
 
       const model = (() => {
-        if (params.model) return parseModel(params.model)
+        if (params.model) return parseModel(params.model, info.providerID)
         return (
           next.model ?? {
             modelID: info.modelID,
@@ -133,6 +144,11 @@ export const TaskTool = Tool.define(
       })()
 
       if (params.model) {
+        yield* provider.getModel(model.providerID, model.modelID)
+        yield* log.info("subagent model override", {
+          model: `${model.providerID}/${model.modelID}`,
+          agent: params.subagent_type,
+        })
         yield* ctx.ask({
           permission: "model_override",
           patterns: [params.model],

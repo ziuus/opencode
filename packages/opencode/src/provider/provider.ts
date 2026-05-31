@@ -1736,6 +1736,26 @@ export function sort<T extends { id: string }>(models: T[]) {
 }
 
 export function parseModel(model: string) {
+  if (!model.includes("/")) {
+    if (model.startsWith("gemini-")) {
+      return {
+        providerID: ProviderID.make("google"),
+        modelID: ModelID.make(model),
+      }
+    }
+    if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("o3-")) {
+      return {
+        providerID: ProviderID.make("openai"),
+        modelID: ModelID.make(model),
+      }
+    }
+    if (model.startsWith("claude-")) {
+      return {
+        providerID: ProviderID.make("anthropic"),
+        modelID: ModelID.make(model),
+      }
+    }
+  }
   const [providerID, ...rest] = model.split("/")
   return {
     providerID: ProviderID.make(providerID),

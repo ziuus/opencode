@@ -14,6 +14,26 @@ import { RGBA } from "@opentui/core"
 import { Filesystem } from "@/util/filesystem"
 
 export function parseModel(model: string) {
+  if (!model.includes("/")) {
+    if (model.startsWith("gemini-")) {
+      return {
+        providerID: "google",
+        modelID: model,
+      }
+    }
+    if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("o3-")) {
+      return {
+        providerID: "openai",
+        modelID: model,
+      }
+    }
+    if (model.startsWith("claude-")) {
+      return {
+        providerID: "anthropic",
+        modelID: model,
+      }
+    }
+  }
   const [providerID, ...rest] = model.split("/")
   return {
     providerID: providerID,

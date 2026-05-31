@@ -160,12 +160,15 @@ function task(info: ToolProps<typeof TaskTool>) {
   const agent = Locale.titlecase(subagent)
   const desc =
     typeof input.description === "string" && input.description.trim().length > 0 ? input.description : undefined
+  const model = typeof input.model === "string" ? input.model : undefined
   const icon = status === "error" ? "✗" : status === "running" ? "•" : "✓"
   const name = desc ?? `${agent} Task`
   inline({
     icon,
     title: name,
-    description: desc ? `${agent} Agent` : undefined,
+    description: [desc ? `${agent} Agent` : undefined, model ? `Model: ${model}` : undefined]
+      .filter(Boolean)
+      .join(" · "),
   })
 }
 

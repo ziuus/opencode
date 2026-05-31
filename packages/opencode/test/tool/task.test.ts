@@ -8,6 +8,7 @@ import { MessageV2 } from "../../src/session/message-v2"
 import type { SessionPrompt } from "../../src/session/prompt"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { ModelID, ProviderID } from "../../src/provider/schema"
+import { Provider } from "../../src/provider/provider"
 import { TaskTool, type TaskPromptOps } from "../../src/tool/task"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
@@ -31,6 +32,39 @@ const it = testEffect(
     Session.defaultLayer,
     Truncate.defaultLayer,
     ToolRegistry.defaultLayer,
+    Layer.succeed(
+      Provider.Service,
+      Provider.Service.of({
+        list: () => Effect.succeed({}),
+        getProvider: (id) => Effect.fail(new Error(`Provider ${id} not found`)) as any,
+        getModel: (providerID, modelID) =>
+          Effect.succeed({
+            id: modelID,
+            providerID,
+            name: modelID,
+            api: { id: modelID, url: "", npm: "" },
+            capabilities: {
+              attachment: true,
+              reasoning: true,
+              temperature: true,
+              toolcall: true,
+              input: { text: true, audio: false, image: true, video: false, pdf: true },
+              output: { text: true, audio: false, image: false, video: false, pdf: false },
+              interleaved: false,
+            },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+            limit: { context: 128000, output: 4096 },
+            status: "active",
+            options: {},
+            headers: {},
+            release_date: "",
+          } as any),
+        getLanguage: () => Effect.fail(new Error("Not implemented")) as any,
+        closest: () => Effect.succeed(undefined),
+        getSmallModel: () => Effect.succeed(undefined),
+        defaultModel: () => Effect.succeed({ providerID: ProviderID.make("test"), modelID: ModelID.make("test") }),
+      }),
+    ),
   ),
 )
 
